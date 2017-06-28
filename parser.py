@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 import json
+import re
 
 ADVERT_TYPE = {
     'sale_flat': 'Продажа квартиры',
@@ -173,34 +174,45 @@ def get_commercial(url, type):
     extra_price = soup.find(id='price_rur').nextSibling.nextSibling
     if (extra_price != None):
         advert['Подробнее о цене'] = ' '.join(extra_price.text.split())
+    else:
+        extra_price = soup.find('div', 'cf-object-descr-add')
+        if(extra_price != None):
+            advert['Подробнее о цене'] = ' '.join(extra_price.find('span').text.split())
 
     properties = soup.find_all('section', 'cf-comm-offer-detail__section')
     for section in properties:
-        title = section.find('h2').text.strip()
-        if(title == 'Об объекте'):
-            advert[title] = {}
-        elif(title != 'Инфраструктура'):
-            advert['О здании'] = {}
-            advert['О здании']['Название'] = title
-            title = 'О здании'
-        else:
-            infra = section.find_all('li', 'cf-comm-offer-detail__infrastructure-item')
-            if (len(infra) > 0):
-                extra = []
-                for item in infra:
-                    extra.append(item.text)
-                if (len(extra) > 0):
-                    advert['О здании'][title] = ', '.join(extra)
+        if(section.find('h2') is not None):
+            title = section.find('h2').text.strip()
+            if(title == 'Об объекте' or title == 'О здании'):
+                advert[title] = {}
+            elif(title != 'Инфраструктура' and title != 'Дополнительно'):
+                advert['О здании'] = {}
+                advert['О здании']['Название'] = title
+                title = 'О здании'
+            else:
+                infra = section.find_all('li', 'cf-comm-offer-detail__infrastructure-item')
+                if (len(infra) > 0):
+                    extra = []
+                    for item in infra:
+                        extra.append(item.text)
+                    if (len(extra) > 0 and title == 'Инфраструктура'):
+                        advert['О здании'][title] = ', '.join(extra)
+                    elif(len(extra) > 0 and title == 'Дополнительно'):
+                        advert['Об объекте'][title] = ', '.join(extra)
 
-        prop_list = section.find_all('dt')
-        value_list = section.find_all('dd')
-        for row in range(len(prop_list)):
-            prop = list(prop_list[row].text.strip())
-            prop.remove(':')
-            prop = ''.join(prop)
-            advert[title][prop] = ' '.join(value_list[row].text.split())
+            prop_list = section.find_all('dt')
+            value_list = section.find_all('dd')
+            for row in range(len(prop_list)):
+                prop = list(prop_list[row].text.strip())
+                prop.remove(':')
+                prop = ''.join(prop)
+                advert[title][prop] = ' '.join(value_list[row].text.split())
 
-    advert['Описание'] = soup.find_all('div', 'object_descr_text')[0].contents[0].strip()
+    # advert['Описание'] = soup.find_all('div', 'object_descr_text')[0].contents[0].text
+    text = str(soup.find_all('div', 'object_descr_text')[0])
+    text = text.split('<div class="object_descr_text">')[1].split('<div style="clear: both">')[0]
+    advert['Описание'] = (' '.join(text.split('<br/>'))).strip()
+
 
     realtor = soup.find('h3', 'realtor-card__title')
     if (len(realtor.find_all('a')) == 0):
@@ -216,7 +228,7 @@ if __name__ == '__main__':
     adverts_mas = []
     # example_url = 'https://www.cian.ru/rent/flat/156101470/'
     # adverts_mas.append(get_rent_flat_in_secondary(example_url))
-    example_url = 'https://www.cian.ru/rent/commercial/159368057/'
+    example_url = 'https://www.cian.ru/rent/flat/159118461/'
     type = 'Аренда офиса'
     adverts_mas.append(get_commercial(example_url,type))
     with open('realty_adverts.json', 'w', encoding='utf-8') as file:
