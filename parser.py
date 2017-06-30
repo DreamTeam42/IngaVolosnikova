@@ -1,39 +1,43 @@
 from bs4 import BeautifulSoup
 import requests
 import json
-import re
+import time
 
-ADVERT_TYPE = {
-    'sale_flat': 'Продажа квартиры',
-    'rent_flat': 'Аренда квартиры',
-    'daily_rent_flat': 'Посуточная аренда квартиры',
-    'sale_room': 'Продажа комнаты',
-    'rent_room': 'Аренда комнаты',
-    'daily_rent_room': 'Посуточная аренда комнаты',
-    'rent_bed-place': 'Аренда койко-места',
-    'daily_rent_bed-place': 'Посуточная аренда койко-места',
-    'sale_part_of_flat': 'Продажа части квартиры',
-    'sale_house': 'Продажа дома',
-    'rent_house': 'Аренда дома',
-    'daily_rent_house': 'Посуточная аренда дома',
-    'sale_townhouse': 'Продажа таунхауса',
-    'rent_townhouse': 'Аренда таунхауса',
-    'sale_part_of_house': 'Продажа части дома',
-    'rent_part_of_house': 'Аренда части дома',
-    'sale_ground': 'Продажа участка',
-    'sale_office': 'Продажа офиса',
-    'rent_office': 'Аренда офиса',
-    'sale_trade_area': 'Продажа торговой площади',
-    'rent_trade_area': 'Аренда торговой площади',
-    'sale_warehouse': 'Продажа склада',
-    'rent_warehouse': 'Аренда склада',
-    'sale_free_room': 'Продажа ПСН',
-    'rent_free_room': 'Аренда ПСН',
-    'sale_garage': 'Продажа гаража',
-    'rent_garage': 'Аренда гаража',
-    'sale_building': 'Продажа здания',
-    'rent_building': 'Аренда здания'
+ADVERTS_TYPE_0 = {
+    'Продажа квартиры': 'cat.php?deal_type=sale&engine_version=2&offer_type=flat&p=\t&region=1',
+    'Аренда квартиры': 'cat.php?deal_type=rent&engine_version=2&offer_type=flat&p=\t&region=1&type=4',
+    'Посуточная аренда квартиры': 'cat.php?deal_type=rent&engine_version=2&offer_type=flat&p=\t&region=1&type=2',
+    'Продажа комнаты': 'cat.php?deal_type=sale&engine_version=2&offer_type=flat&p=\t&region=1&room0=1',
+    'Аренда комнаты': 'cat.php?deal_type=rent&engine_version=2&offer_type=flat&p=\t&region=1&room0=1&type=4',
+    'Посуточная аренда комнаты': 'cat.php?deal_type=rent&engine_version=2&offer_type=flat&p=\t&region=1&room0=1&type=2',
+    'Аренда койко-места': 'cat.php?deal_type=rent&engine_version=2&offer_type=flat&p=\t&region=1&room10=1&type=4',
+    'Посуточная аренда койко-места': 'cat.php?deal_type=rent&engine_version=2&offer_type=flat&p=\t&region=1&room10=1&type=2',
+    'Продажа части квартиры': 'cat.php?deal_type=sale&engine_version=2&offer_type=flat&p=\t&region=1&room8=1',
+    'Продажа дома': 'cat.php?deal_type=sale&engine_version=2&object_type%5B0%5D=1&offer_type=suburban&p=\t&region=1',
+    'Аренда дома': 'cat.php?deal_type=sale&engine_version=2&object_type%5B0%5D=1&offer_type=suburban&p=\t&region=1',
+    'Посуточная аренда дома': 'cat.php?deal_type=rent&engine_version=2&object_type%5B0%5D=1&offer_type=suburban&p=\t&region=1&type=2',
+    'Продажа таунхауса': 'cat.php?deal_type=sale&engine_version=2&object_type%5B0%5D=4&offer_type=suburban&p=\t&region=1',
+    'Аренда таунхауса': 'cat.php?deal_type=rent&engine_version=2&object_type%5B0%5D=4&offer_type=suburban&p=\t&region=1&type=4',
+    'Продажа части дома': 'cat.php?deal_type=sale&engine_version=2&object_type%5B0%5D=2&offer_type=suburban&p=\t&region=1',
+    'Аренда части дома': 'cat.php?deal_type=rent&engine_version=2&object_type%5B0%5D=2&offer_type=suburban&p=\t&region=1',
+    'Продажа участка': 'cat.php?deal_type=sale&engine_version=2&object_type%5B0%5D=3&offer_type=suburban&p=\t&region=1'
 }
+
+ADVERTS_TYPE_1 = {
+    'Продажа офиса': 'cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=1&p=\t&region=1',
+    'Аренда офиса': 'cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D=1&p=\t&region=1',
+    'Продажа торговой площади': 'cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=2&p=\t&region=1',
+    'Аренда торговой площади': 'cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D=2&p=\t&region=1',
+    'Продажа склада': 'cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=3&p=\t&region=1',
+    'Аренда склада': 'cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D=3&p=\t&region=1',
+    'Продажа ПСН': 'cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=5&p=\t&region=1',
+    'Аренда ПСН': 'cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D=5&p=\t&region=1',
+    'Продажа гаража': 'cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=6&p=\t&region=1',
+    'Аренда гаража': 'cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D=6&p=\t&region=1',
+    'Продажа здания': 'cat.php?deal_type=sale&engine_version=2&offer_type=offices&office_type%5B0%5D=11&p=\t&region=1',
+    'Аренда здания': 'cat.php?deal_type=rent&engine_version=2&offer_type=offices&office_type%5B0%5D=11&p=\t&region=1'
+}
+
 def get_raiting(img_list):
     raiting = 0
     for i in range(5):
@@ -52,27 +56,44 @@ def get_residential(url, type):
     html = requests.get(url)
     soup = BeautifulSoup(html.text,'html.parser')
 
-    advert['Дата подачи'] = soup.find_all('span', 'object_descr_dt_added')[1].text
+    date = soup.find_all('span', 'object_descr_dt_added')
+    if(len(date)>1):
+        advert['Дата подачи'] = date[1].text
 
     if(type.split().count('квартиры') == 1):
-        advert['Количество комнат'] = soup.find_all('div', 'object_descr_title')[0].text.strip()[0]
+        rooms = soup.find_all('div', 'object_descr_title')
+        if(len(rooms)>0):
+            rooms = rooms[0].text.split('-')
+            advert['Количество комнат'] = rooms[0].strip()
 
-    address = soup.find_all('h1', 'object_descr_addr')[0].find_all('a')
-    advert['Адрес'] = ', '.join([address[elem].text for elem in range(len(address))])
+    address = soup.find_all('h1', 'object_descr_addr')
+    if(len(address) > 0):
+        address = address[0].find_all('a')
+        advert['Адрес'] = ', '.join([address[elem].text for elem in range(len(address))])
 
     # Указание на метро может сочетаться с расстоянием до МКАД или отсутствовать
     metro = soup.find_all('p', 'objects_item_metro_prg')
     if(len(metro) > 0):
-        if(metro[0].find('span', 's-icon_subway') is not None):
-            advert['Метро'] = []
         for elem in range(len(metro)):
             if (metro[elem].find('span', 's-icon_subway') is not None):
-                station = ' '.join([metro[elem].find_all('a')[0].text,
-                                    ' '.join(metro[elem].find_all('span', 'object_item_metro_comment')[0].text.split())])
+                if(len(metro[elem].find_all('span', 'object_item_metro_comment')) > 0):
+                    station = ' '.join([metro[elem].find_all('a')[0].text,
+                                        ' '.join(metro[elem].find_all('span', 'object_item_metro_comment')[0].text.split())])
+                else:
+                    station = metro[elem].find_all('a')[0].text
+               # station = ' '.join([metro[elem].find_all('a')[0].text, ' '.join(metro[elem].find_all('span', 'object_item_metro_comment')[0].text.split())])
+                if(advert.get('Метро') == None):
+                    advert['Метро'] = []
                 advert['Метро'].append(station)
             else:
-                advert['МКАД'] = ' '.join([metro[elem].find('a').text,
+                if(len(metro[elem].find_all('span', 'objects_item_metro_comment')) > 1):
+                    station = ' '.join([metro[elem].find('a').text,
                                        ' '.join(metro[elem].find_all('span', 'objects_item_metro_comment')[1].text.split())])
+                else:
+                    station = metro[elem].find('a').text
+                if (advert.get('МКАД') == None):
+                    advert['МКАД'] = []
+                advert['МКАД'].append(station)
 
     price = soup.find('div', 'object_descr_price')
     advert['Цена'] = ' '.join(price.text.split())
@@ -82,23 +103,30 @@ def get_residential(url, type):
     # advert['Цена'] = ' '.join(soup.find_all('div', 'object_descr_price')[0].text.split())
 
     # Универсальный блок парсинга свойств объекта
-    properties = soup.find_all('table', 'object_descr_props')[0].find_all('tr')
-    for row in range(1,len(properties)):
-        prop = list(properties[row].find_all('th')[0].text.strip())
-        prop.remove(':')
-        prop = ''.join(prop)
-        advert[prop] = ' '.join(properties[row].find('td').text.split())
+    properties = soup.find_all('table', 'object_descr_props')
+    if(len(properties) > 0):
+        properties = properties[0].find_all('tr')
+        for row in range(1,len(properties)):
+            prop = list(properties[row].find_all('th')[0].text.strip())
+            prop.remove(':')
+            prop = ''.join(prop)
+            advert[prop] = ' '.join(properties[row].find('td').text.split())
 
-    advert['Описание'] = soup.find_all('div', 'object_descr_text')[0].contents[0].strip()
+    #advert['Описание'] = soup.find_all('div', 'object_descr_text')[0].contents[0].strip()
+    text = str(soup.find_all('div', 'object_descr_text')[0])
+    text = text.split('<div class="object_descr_text">')[1].split('<div style="clear: both">')[0]
+    advert['Описание'] = (' '.join(text.split('<br/>'))).strip()
 
     details = soup.find_all('div', 'object_descr_details')
     if(len(details) > 0):
-        details = details[0].find_all('ul')[0].find_all('li')
-        extra = []
-        for unit in range(len(details)):
-            extra.append(details[unit].contents[2].strip())
-        if(len(extra)>0):
-            advert['Дополнительно'] = ', '.join(extra)
+        details = details[0].find_all('ul')
+        if(len(details) > 0):
+            details = details[0].find_all('li')
+            extra = []
+            for unit in range(len(details)):
+                extra.append(details[unit].contents[2].strip())
+            if(len(extra)>0):
+                advert['Дополнительно'] = ', '.join(extra)
 
     realtor = soup.find('h3', 'realtor-card__title')
     if(len(realtor.find_all('a')) == 0):
@@ -106,9 +134,12 @@ def get_residential(url, type):
     else:
         advert['Продавец'] = realtor.find('a').text
 
-    advert['Телефон продавца'] = soup.find_all('div', 'cf_offer_show_phone-number')[0].find('a').text
 
-    # Информация о районе и доме, только в Мск и только в объявлениях аренды
+    phone = soup.find_all('div', 'cf_offer_show_phone-number')
+    if(len(phone) > 0):
+        advert['Телефон продавца'] = phone[0].find('a').text
+
+    # Информация о районе и доме, только в Мск
     bti_info = soup.find_all('table', 'bti__data')
     for t_count in range(len(bti_info)):
         tbody = bti_info[t_count].find('tbody').find_all('tr')
@@ -123,7 +154,10 @@ def get_residential(url, type):
         elif(t_count == 1):
             advert['Оценка стоимости и владения'] = {}
             for row in tbody:
-                item = row.find('th').find('div', 'bti__data__name').text.strip()
+                if(len(row.find('th').find('div', 'bti__data__name').contents) > 2):
+                    item = row.find('th').find('div', 'bti__data__name').contents[0].strip()
+                else:
+                    item = row.find('th').find('div', 'bti__data__name').text.strip()
                 advert['Оценка стоимости и владения'][item] = row.find('td').text.strip()
         elif(t_count == 2):
             advert['О районе'] = {}
@@ -145,10 +179,14 @@ def get_commercial(url, type):
     html = requests.get(url)
     soup = BeautifulSoup(html.text, 'html.parser')
 
-    advert['Дата подачи'] = soup.find_all('span', 'object_descr_dt_added')[1].text
+    date = soup.find_all('span', 'object_descr_dt_added')
+    if (len(date) > 1):
+        advert['Дата подачи'] = date[1].text
 
-    address = soup.find_all('h1', 'object_descr_addr')[0].find_all('a')
-    advert['Адрес'] = ', '.join([address[elem].text for elem in range(len(address))])
+    address = soup.find_all('h1', 'object_descr_addr')
+    if(len(address) > 0):
+        address = address[0].find_all('a')
+        advert['Адрес'] = ', '.join([address[elem].text for elem in range(len(address))])
 
     # Указание на метро может сочетаться с расстоянием до МКАД или отсутствовать
     # P.S. или может быть записано не полностью... лентяи
@@ -224,14 +262,81 @@ def get_commercial(url, type):
 
     return advert
 
+def parse_one_page(page_url, prop_type, ad_type):
+    # print('Начал парсить страницу')
+    page = requests.get(page_url)
+    soup = BeautifulSoup(page.text,'html.parser')
+    ad_list = soup.find_all('div', 'serp-item')
+    for ad in ad_list:
+        if(prop_type == 0): # жилая недвижимость
+            adverts_mas.append(get_residential(ad['href'], ad_type))
+            # print('Я добавил жилое объявление')
+        else: # коммерческая
+            adverts_mas.append(get_commercial(ad['href'], ad_type))
+            # print('Я добавил коммерческое объявление')
+
+    # возвращаем номер последней доступной отсюда страницы или -1, если страниц еще очень много
+    pages = soup.find_all('div', 'pager_pages')
+    if(len(pages) > 0):
+        pages = pages[0].contents
+        last_page_number = pages[len(pages)-2].text
+        try:
+            last_page_number = int(last_page_number)
+        except:
+            last_page_number = -1
+    else:
+        last_page_number = 1 # Если нет списка страниц, то страница одна
+    # print("Закончил")
+    return last_page_number
+
+def parse():
+    # Жилая недвижимость
+    prop_type = 0
+    for key in ADVERTS_TYPE_0.keys():
+        page_number = 1
+        while True:
+        #for i in range(1,3):
+            page_url = base_url + str(page_number).join(ADVERTS_TYPE_0.get(key).split('\t'))
+            last_page = parse_one_page(page_url, prop_type, key)
+            time.sleep(5)
+            if(last_page == page_number):
+                break
+            else:
+                page_number += 1
+
+    """print('Тестим продажу участка')
+    ad_type = 'Продажа участка'
+    page_number = 1
+    # while True:
+    for i in range(1, 2):
+        page_url = base_url + str(page_number).join(ADVERTS_TYPE_0.get(ad_type).split('\t'))
+        last_page = parse_one_page(page_url, prop_type, ad_type)
+        if (last_page == page_number):
+            break"""
+
+    # Коммерческая недвижимость
+    prop_type = 1
+    for key in ADVERTS_TYPE_1.keys():
+        page_number = 1
+        while True:
+        #for i in range(1,3):
+            page_url = base_url + str(page_number).join(ADVERTS_TYPE_1.get(key).split('\t'))
+            last_page = parse_one_page(page_url, prop_type, key)
+            time.sleep(5)
+            if (last_page == page_number):
+                break
+            else:
+                page_number += 1
+
 if __name__ == '__main__':
+    base_url = 'https://www.cian.ru/'
     adverts_mas = []
-    # example_url = 'https://www.cian.ru/rent/flat/156101470/'
-    # adverts_mas.append(get_rent_flat_in_secondary(example_url))
-    example_url = 'https://www.cian.ru/rent/flat/159118461/'
-    type = 'Аренда офиса'
-    adverts_mas.append(get_commercial(example_url,type))
+    print('Начинаю работу')
+    parse()
+    print('Я все сделал, готовлю отчет')
+
     with open('realty_adverts.json', 'w', encoding='utf-8') as file:
         json.dump(adverts_mas, file, indent=2, ensure_ascii=False)
 
+    print('Результаты в файле realty_adverts.json')
 
